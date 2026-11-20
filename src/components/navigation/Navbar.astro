@@ -1,0 +1,83 @@
+---
+import styles from './Navigation.module.css'
+
+const pathname = Astro.url.pathname
+const isHome = pathname === '/'
+
+const sections = [
+  { name: 'Inicio', href: '/' },
+  { name: 'Sobre mí', href: '#sobre-mi' },
+  { name: 'Tecnologías', href: '#tecnologias' },
+  { name: 'Experiencia', href: '#experiencia' },
+  { name: 'Proyectos', href: '#proyectos' },
+  { name: 'Contacto', href: '#contacto' },
+]
+---
+
+<nav class={styles.navbar} aria-label="Navegación principal">
+  {sections.map((section) => {
+    const id = section.href === '/' ? '' : section.href.slice(1)
+
+    return (
+      <a class:list={[styles.link]} href={section.href} data-nav-link data-section={id} aria-current={isHome && id === '' ? 'location' : undefined}>
+        {section.name}
+      </a>
+    )
+  })}
+</nav>
+
+<script>
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-nav-link]'))
+
+  const currentHash = () => window.location.hash.slice(1)
+
+  const setActive = (id: string) => {
+    links.forEach((link) => {
+      if (link.dataset.section === id) {
+        link.setAttribute('aria-current', 'location')
+      } else {
+        link.removeAttribute('aria-current')
+      }
+    })
+  }
+
+  // Estado inicial: el hash actual o "Inicio" cuando no hay hash
+  setActive(currentHash() || '')
+
+  // Click en los links, back/forward y cambios manuales del hash
+  window.addEventListener('hashchange', () => setActive(currentHash() || ''))
+
+  // Scroll spy: resalta la sección visible, no solo la del hash
+  const targets = links
+    .map((link) => {
+      const id = link.dataset.section
+      return id ? { id, element: document.getElementById(id) } : null
+    })
+    .filter((item): item is { id: string; element: HTMLElement } => item !== null && item.element !== null)
+
+  if (targets.length > 0) {
+    const visible = new Map<string, number>()
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            visible.set(entry.target.id, entry.boundingClientRect.top)
+          } else {
+            visible.delete(entry.target.id)
+          }
+        })
+
+        if (visible.size > 0) {
+          const [closestId] = [...visible.entries()].sort((a, b) => Math.abs(a[1]) - Math.abs(b[1]))[0]
+          setActive(closestId)
+        } else if (!currentHash()) {
+          setActive('')
+        }
+      },
+      { rootMargin: '-80px 0px -55% 0px', threshold: 0 },
+    )
+
+    targets.forEach(({ element }) => observer.observe(element))
+  }
+</script>
